@@ -434,6 +434,8 @@ document.addEventListener('keydown', e => {
   act();
 });
 window.addEventListener('resize', center);
+// Script notices and wrapping controls can resize the stage without a window resize.
+new ResizeObserver(center).observe($('stage'));
 
 // The index stays in memory; script bodies are fetched only when selected, never put in Cache API.
 let libraryIndex = null, indexRequest = null, libraryLoad = null, failedScript = null;
