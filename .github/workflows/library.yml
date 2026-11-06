@@ -13,8 +13,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint:library
-      - name: Check valid common-word fixture
+      - name: Check valid common-word and script character fixtures
         run: npm run lint:library -- tools/fixtures/valid
+      - name: Check invalid script character fixtures fail with expected errors
+        run: node --test tools/test-lint-script-chars.mjs
       - run: npm run build:library
       - name: Check committed library index
         run: |
