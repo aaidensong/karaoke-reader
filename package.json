@@ -1,0 +1,12 @@
+{
+  "name": "karaoke-reader",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build:ipa": "node tools/build-ipa.mjs"
+  },
+  "devDependencies": {
+    "cmu-pronouncing-dictionary": "3.0.0"
+  }
+}

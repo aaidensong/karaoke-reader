@@ -1,4 +1,4 @@
-// usage: npm i cmu-pronouncing-dictionary && node tools/build-ipa.mjs
+// usage: npm ci && npm run build:ipa
 // converts CMU ARPAbet to US IPA with syllable dots (.) and stress marks (ˈ primary, ˌ secondary)
 import { dictionary } from 'cmu-pronouncing-dictionary';
 import fs from 'fs';
@@ -23,5 +23,7 @@ function ipa(arp){
 }
 const out={};
 for(const [w,a] of Object.entries(dictionary)){ if(/\(\d+\)$/.test(w))continue; out[w]=ipa(a); }
-fs.writeFileSync('data/ipa-en-us.json',JSON.stringify(out));
+const output = new URL('../data/ipa-en-us.json', import.meta.url);
+fs.mkdirSync(new URL('../data/', import.meta.url), { recursive: true });
+fs.writeFileSync(output,JSON.stringify(out));
 console.log(Object.keys(out).length, ['pronunciation','fluency','regression','minute','the','comes','processing'].map(w=>w+' /'+out[w]+'/').join('  '));
