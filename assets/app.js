@@ -13,7 +13,10 @@ const savedText = store.get('text', null);
 const firstVisit = !store.get('visited', false) && !(typeof savedText === 'string' && savedText.trim());
 let text = savedText ?? SAMPLE, byLine = store.get('byline', false);
 let lines = [], idx = 0, wordIdx = 0, wordStart = 0, playing = false, raf = 0, gapUntil = 0, elapsed = 0, lastT = 0;
-let wpm = store.get('wpm',150), size = store.get('size',40), gapMs = store.get('gap',400);
+const savedSize = store.get('size', null);
+// Older versions saved 40 on every startup, so only other legacy values imply a choice.
+let sizeCustomized = store.get('sizeCustomized', savedSize !== null && savedSize !== 40) === true;
+let wpm = store.get('wpm',150), size = savedSize ?? 40, gapMs = store.get('gap',400);
 let currentScriptId = null, ownLines = store.get('ownLines', false) === true;
 $('own-lines').checked = ownLines;
 
@@ -58,15 +61,25 @@ function render(jump){
       [...el.children].forEach((w,j)=>{ w.className = 'w' + (lines[i].other?'':j<wordIdx?' done':j===wordIdx&&playing?' on':''); w.style.removeProperty('--p'); });
     } else [...el.children].forEach(w=>w.className='w');
   }
+  layoutObserver.disconnect();
+  layoutObserver.observe($('stage'));
+  layoutObserver.observe($('reel'));
+  if (els[idx]) layoutObserver.observe(els[idx], { box: 'border-box' });
   requestAnimationFrame(center);
   $('prog').style.width = lines.length ? ((idx + (lines[idx] ? wordIdx/lines[idx].words.length : 0)) / lines.length * 100) + '%' : '0';
   stat();
 }
 function center(){
-  const cur = $('reel').children[idx]; if(!cur) return;
-  const y = $('stage').clientHeight * 0.42 - (cur.offsetTop + cur.offsetHeight/2);
-  $('reel').style.transform = `translateY(${y}px)`;
+  const reel = $('reel'), cur = reel.children[idx]; if(!cur) return;
+  const box = cur.getBoundingClientRect();
+  const top = Math.max(12, $('stage').clientHeight * 0.42 - box.height/2);
+  // Subtract the reel's rect to cancel its animated transform and keep fractional pixels.
+  const y = top - (box.top - reel.getBoundingClientRect().top);
+  reel.style.transform = `translateY(${y}px)`;
 }
+// Font-size transitions and IPA/font loading change line geometry after render().
+// Only move the reel here; rendering again would reset the active word's fill.
+const layoutObserver = new ResizeObserver(center);
 function stat(){
   const s = Math.floor(elapsed/1000);
   $('stat').textContent = `${lines.length?idx+1:0} / ${lines.length} · ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
@@ -128,7 +141,19 @@ function go(d){
 
 function setWpm(v){ wpm = Math.max(60, Math.min(400, v)); $('wpm').value = wpm; $('wpmv').textContent = wpm; store.set('wpm', wpm);
   if (playing && lines[idx]){ const t = performance.now(), i = lines[idx].other ? 0 : wordIdx; const p = Math.min(1,(t-wordStart)/(durs[i]||1)); durs = lineDurations(); wordStart = t - p*(durs[i]||0); } }
-function setSize(v){ size = v; $('fs').value = v; $('fsv').textContent = v; document.documentElement.style.setProperty('--size', v+'px'); store.set('size', v); setTimeout(center, 320); }
+function syncSize(){
+  if (sizeCustomized) document.documentElement.style.setProperty('--size', size+'px');
+  else {
+    document.documentElement.style.removeProperty('--size');
+    size = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--size'));
+  }
+  $('fs').value = size; $('fsv').textContent = size;
+}
+function setSize(v){
+  size = v; sizeCustomized = true;
+  store.set('size', v); store.set('sizeCustomized', true);
+  syncSize();
+}
 function setGap(v){ gapMs = v; $('gap').value = v; $('gapv').textContent = (v/1000).toFixed(1)+'s'; store.set('gap', v); }
 
 $('play').onclick = toggle;
@@ -435,9 +460,7 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
   act();
 });
-window.addEventListener('resize', center);
-// Script notices and wrapping controls can resize the stage without a window resize.
-new ResizeObserver(center).observe($('stage'));
+window.addEventListener('resize', () => { syncSize(); center(); });
 
 // The index stays in memory; script bodies are fetched only when selected, never put in Cache API.
 let libraryIndex = null, indexRequest = null, libraryLoad = null, failedScript = null;
@@ -578,7 +601,7 @@ $('share').onclick = async () => {
 };
 window.addEventListener('hashchange', openHashScript);
 
-setWpm(wpm); setSize(size); setGap(gapMs); build();
+setWpm(wpm); syncSize(); setGap(gapMs); build();
 updateIpaButton();
 const dictReady = restoreDict();
 openHashScript();
