@@ -55,6 +55,8 @@ Yes, I am. My last visit was in the spring.
 - region은 나라마다 제도가 달라지는 상황만 CA 또는 US로 지정한다.
 - 이름은 다양한 문화권에서 고르되, 특정 집단을 고정관념으로 그리지 않는다.
 
+- ※ 안내문은 03-health, 04-money-admin, 12-emergency 분야에만 넣는다. 문구는 '※ 대화 연습용 가상 상황입니다. 실제 절차와 비용은 해당 기관에 확인하세요.' 다른 분야에는 넣지 않는다.
+
 ## 작업 방식
 
 - 시작할 때 library/ 폴더와 library/index.json을 읽어 이미 있는 id와 하위 상황을 확인한다. 중복을 만들지 않는다.
