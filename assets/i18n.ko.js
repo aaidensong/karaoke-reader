@@ -1,5 +1,30 @@
 // UI strings and labels. Loaded before app.js.
 const KR_I18N = Object.freeze({
+  "library": "라이브러리",
+  "categories": "분야",
+  "allCategories": "전체 분야",
+  "categoryLabels": ["일상", "주거", "건강", "금융·행정", "교통", "여행", "직장", "구직", "사교", "가족", "고객센터", "긴급 상황", "말하기", "읽기"],
+  "level": "수준",
+  "allLevels": "전체 수준",
+  "scriptType": "유형",
+  "allTypes": "전체 유형",
+  "typeLabels": { "dialogue": "대화", "monologue": "독백", "qa": "질문·답변" },
+  "searchScripts": "제목·상황 검색",
+  "searchPlaceholder": "연습할 상황을 찾아보세요",
+  "libraryLoading": "대본 목록을 불러오는 중…",
+  "libraryError": "대본 목록을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.",
+  "libraryEmpty": "조건에 맞는 대본이 없습니다.",
+  "libraryCount": "대본 {count}개",
+  "scriptLoading": "대본을 불러오는 중…",
+  "scriptLoadError": "대본을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.",
+  "scriptNotFound": "공유 링크의 대본을 찾을 수 없습니다.",
+  "scriptInvalid": "대본 형식을 확인해 주세요.",
+  "scriptMinutes": "약 {minutes}분",
+  "ownLines": "내 대사만 연습",
+  "share": "공유 링크 복사",
+  "shareLink": "대본 공유 링크",
+  "shareCopied": "공유 링크를 복사했습니다.",
+  "shareFallback": "아래 링크를 선택해 복사해 주세요.",
   "appName": "Karaoke Reader",
   "stageHint": "? 단축키 보기 · 파일을 끌어다 놓으면 대본으로 불러옵니다",
   "play": "▶ 재생",
@@ -61,7 +86,7 @@ const KR_I18N = Object.freeze({
 for (const el of document.querySelectorAll("[data-i18n]")) {
   el.textContent = KR_I18N[el.dataset.i18n];
 }
-for (const attr of ["title", "aria-label"]) {
+for (const attr of ["title", "aria-label", "placeholder"]) {
   for (const el of document.querySelectorAll(`[data-i18n-${attr}]`)) {
     el.setAttribute(attr, KR_I18N[el.getAttribute(`data-i18n-${attr}`)]);
   }

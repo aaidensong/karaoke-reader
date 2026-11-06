@@ -1,0 +1,41 @@
+[
+  {
+    "id": "daily-test-dialogue",
+    "title": "대화 형식 확인용 대본",
+    "category": "01-daily",
+    "situation": "가상 카페에서 주문 확인",
+    "type": "dialogue",
+    "level": "A2",
+    "wpm": 110,
+    "minutes": 1,
+    "region": "general",
+    "path": "library/01-daily/daily-test-dialogue.md",
+    "sha256": "52ef7744dc4a8ad71da8be792c3fa6ec9fec000efcca0f445630b69303ed21ef"
+  },
+  {
+    "id": "reading-test-monologue",
+    "title": "독백 형식 확인용 대본",
+    "category": "14-reading",
+    "situation": "짧은 글 읽기와 속도 확인",
+    "type": "monologue",
+    "level": "B2",
+    "wpm": 150,
+    "minutes": 1,
+    "region": "general",
+    "path": "library/14-reading/reading-test-monologue.md",
+    "sha256": "d238aff2d7d994c230299b521dc775a71a927e064c652e0061feb94e657d8b2f"
+  },
+  {
+    "id": "speaking-test-qa",
+    "title": "질문과 답변 형식 확인용 대본",
+    "category": "13-speaking",
+    "situation": "주말 활동에 관한 질의응답",
+    "type": "qa",
+    "level": "B1",
+    "wpm": 130,
+    "minutes": 1,
+    "region": "general",
+    "path": "library/13-speaking/speaking-test-qa.md",
+    "sha256": "8307101649c61bf98ad2915a8cd9933f1a8a1de22ee0d0377f0ebbd7780b966c"
+  }
+]

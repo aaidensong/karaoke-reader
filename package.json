@@ -4,6 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "build:library": "node tools/build-library.mjs",
+    "lint:library": "node tools/lint-library.mjs",
     "build:ipa": "node tools/build-ipa.mjs",
     "stamp:sw": "node tools/stamp-sw.mjs",
     "check:sw": "node tools/stamp-sw.mjs --check"
