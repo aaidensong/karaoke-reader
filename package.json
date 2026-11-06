@@ -4,7 +4,9 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build:ipa": "node tools/build-ipa.mjs"
+    "build:ipa": "node tools/build-ipa.mjs",
+    "stamp:sw": "node tools/stamp-sw.mjs",
+    "check:sw": "node tools/stamp-sw.mjs --check"
   },
   "devDependencies": {
     "cmu-pronouncing-dictionary": "3.0.0"

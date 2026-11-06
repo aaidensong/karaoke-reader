@@ -113,6 +113,7 @@ category 목록: 01-daily 02-housing 03-health 04-money-admin 05-transport 06-tr
 3. 프레임워크, 번들러, 외부 API, 분석 도구를 추가하지 않는다. 필요하면 PR 설명에 제안만 한다.
 4. 이 문서와 다르게 해야 할 이유가 생기면 구현하지 말고 PR 설명에 이유와 대안을 적는다.
 5. 대본 파일 형식을 바꾸지 않는다.
+6. 앱 파일을 바꾸면 `npm run stamp:sw`를 실행하고 커밋한다. 커밋 전에 `npm run check:sw`로 버전 일치를 확인한다. APP_FILES 목록은 sw.js 한 곳에서 관리한다.
 
 ## 프로그램 PR 설명 형식
 
