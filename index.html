@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Karaoke Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/i18n.ko.js" defer></script>
+<script src="assets/app.js" defer></script>
+</head>
+<body>
+<div class="top"><b data-i18n="appName"></b><span id="stat">0 / 0 · 0:00</span></div>
+
+<div class="stage" id="stage" data-i18n-title="stageTitle">
+  <div class="guide"></div>
+  <div class="reel" id="reel"></div>
+  <div class="hint" data-i18n="stageHint"></div>
+</div>
+
+<div class="bar">
+  <div class="prog"><i id="prog"></i></div>
+  <button id="prev" data-i18n-aria-label="previousSentence">←</button>
+  <button id="play"><span id="playlbl" data-i18n="play"></span><kbd>Space</kbd></button>
+  <button id="next" data-i18n-aria-label="nextSentence">→</button>
+  <div class="grp"><label for="wpm" data-i18n="wpm"></label><input id="wpm" type="range" min="60" max="400" step="5" value="150"><output id="wpmv">150</output></div>
+  <div class="grp opt"><label for="fs" data-i18n="fontSize"></label><input id="fs" type="range" min="24" max="72" step="2" value="40"><output id="fsv">40</output></div>
+  <div class="grp opt"><label for="gap" data-i18n="sentenceGap"></label><input id="gap" type="range" min="0" max="2000" step="100" value="400"><output id="gapv">0.4s</output></div>
+  <span class="spacer"></span>
+  <button id="ipa" aria-pressed="false"><span id="ipalbl" data-i18n="ipaOff"></span><kbd>P</kbd></button>
+  <button id="edit"><span data-i18n="editScript"></span><kbd>E</kbd></button>
+  <button id="helpbtn" data-i18n-aria-label="shortcuts">?</button>
+</div>
+
+<div class="help" id="help" hidden>
+  <div class="card">
+    <h2 data-i18n="shortcuts"></h2>
+    <dl>
+      <dt><kbd>Space</kbd></dt><dd data-i18n="helpPlay"></dd>
+      <dt><kbd>←</kbd><kbd>→</kbd></dt><dd data-i18n="helpMove"></dd>
+      <dt><kbd>R</kbd></dt><dd data-i18n="helpRestartLine"></dd>
+      <dt><kbd>Shift</kbd><kbd>R</kbd></dt><dd data-i18n="helpRestartScript"></dd>
+      <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd data-i18n="helpSpeed"></dd>
+      <dt><kbd>P</kbd></dt><dd data-i18n="helpIpa"></dd>
+      <dt><kbd>−</kbd><kbd>=</kbd></dt><dd data-i18n="helpFontSize"></dd>
+      <dt><kbd>F</kbd></dt><dd data-i18n="helpFullscreen"></dd>
+      <dt><kbd>E</kbd></dt><dd data-i18n="helpEdit"></dd>
+      <dt><kbd>?</kbd></dt><dd data-i18n="helpToggle"></dd>
+      <dt><kbd>Esc</kbd></dt><dd data-i18n="helpClose"></dd>
+    </dl>
+    <p data-i18n="helpNote"></p>
+  </div>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="sheet">
+    <h2 data-i18n="scriptTitle"></h2>
+    <p data-i18n="editorHint"></p>
+    <div class="drop" id="drop">
+      <input id="file" type="file" accept=".txt,.md,.srt,.vtt,.docx,text/plain" hidden>
+      <button id="pick" type="button" data-i18n="attachFile"></button>
+      <span id="fmsg" data-i18n="supportedFiles"></span>
+    </div>
+    <textarea id="src" spellcheck="false"></textarea>
+    <div class="row">
+      <label class="chk"><input id="byline" type="checkbox"><span data-i18n="byLine"></span></label>
+      <button id="cancel" data-i18n="close"></button>
+      <button id="apply" style="background:var(--fill);border-color:var(--fill);color:#fff" data-i18n="apply"></button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
