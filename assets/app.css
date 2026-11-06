@@ -1,17 +1,17 @@
 /* Layout: one-screen stage. Script lines stacked in a column, current line pinned at the reading line; controls in a bottom bar, script editor in a side drawer. */
 :root{
   --bg:#f3f4f7; --stage:#ffffff; --fg:#1b1e27; --dim:#9aa0b0; --line:#dfe2ea;
-  --fill:#2340d9; --fill-soft:#2340d91a; --panel:#ffffff; --stress:#c2410c; --play-fg:#fff;
+  --fill:#2340d9; --fill-soft:#2340d91a; --panel:#ffffff; --stress:#c2410c; --play-fg:#fff; --other-current:#486279;
   --f-read:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   --f-ui:"IBM Plex Mono", ui-monospace, Menlo, monospace;
   --size:40px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#0c0e14; --stage:#11141c; --fg:#eef0f6; --dim:#545b6e; --line:#232838;
-  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; --play-fg:#0c0e14; color-scheme:dark } }
+  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; --play-fg:#0c0e14; --other-current:#a6bfd5; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#0c0e14; --stage:#11141c; --fg:#eef0f6; --dim:#545b6e; --line:#232838;
-  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; --play-fg:#0c0e14; color-scheme:dark }
+  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; --play-fg:#0c0e14; --other-current:#a6bfd5; color-scheme:dark }
 
 [hidden]{display:none!important}
 *{box-sizing:border-box}
@@ -101,7 +101,8 @@ label.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--dim
 #script-status:empty{display:none}
 #script-notice{margin:0;padding:0 16px 10px;font-size:11px;line-height:1.5;white-space:pre-line}
 #share-link{margin:0 16px 10px;padding:8px;color:var(--fg);background:var(--panel);border:1px solid var(--line)}
-.ln.other,.ln.other.cur{font-family:var(--f-read);font-weight:400;font-style:italic;color:var(--dim);opacity:.75}
+.ln.other{font-family:var(--f-read);font-weight:400;font-style:italic;color:var(--dim);opacity:.75}
+.ln.other.cur{color:var(--other-current);opacity:1}
 .ln.other.past{opacity:.28}
 .stage{min-height:0}
 #library{width:min(1040px,calc(100% - 32px));height:min(820px,calc(100% - 32px))}
@@ -124,7 +125,7 @@ button,input,select{touch-action:manipulation}
 .stage{touch-action:manipulation}
 .bar{padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
 @media (any-pointer:coarse){
-  .keyboard-hint,kbd,#helpbtn{display:none}
+  .hint,kbd,#helpbtn{display:none}
   button{min-height:44px;min-width:44px}
   input[type=range]{min-height:44px}
   input[type=checkbox]{width:24px;height:24px}
