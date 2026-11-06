@@ -2,6 +2,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readLibrary, root, format } from './library-utils.mjs';
 
+// Metadata allows Hangul, ASCII English/digits/spaces, ASCII punctuation,
+// and common Korean/English typographic punctuation. Other scripts stay errors.
+const invalidMetadataChar = /[^\p{Script_Extensions=Hangul}A-Za-z0-9 !"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~·‘’“”–—…]/gu;
+const nonEnglishBodyChar = /[\p{Script_Extensions=Hangul}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Han}]/gu;
+const matches = (text, pattern) => [...new Set(text.match(pattern) || [])].join(' ');
+
 try {
   if (process.argv.length > 3) throw new Error('사용법: npm run lint:library -- [폴더 또는 파일]');
   const scripts = await readLibrary(process.argv[2]);
@@ -18,6 +24,15 @@ try {
   const allGrams = scripts.map(grams);
   scripts.forEach((script, index) => {
     const label = path.relative(root, script.file), words = format.words(script.source);
+    for (const key of ['title', 'situation']){
+      const invalid = matches(script.meta[key] || '', invalidMetadataChar);
+      if (invalid) script.errors.push(`${key}: 허용되지 않은 문자: ${invalid}`);
+    }
+    // Parsed paragraphs include ## questions and both dialogue roles, but exclude notices.
+    for (const p of script.paragraphs){
+      const invalid = matches(p.text, nonEnglishBodyChar);
+      if (invalid) script.errors.push(`${p.number}행: 영어 본문에 한글·가나·한자 포함: ${invalid}`);
+    }
     const normalized = ` ${words.join(' ')} `;
     for (const term of banned){
       if (normalized.includes(` ${format.words(term).join(' ')} `)) script.errors.push(`금지어 포함: ${term}`);
