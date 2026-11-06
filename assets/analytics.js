@@ -1,6 +1,20 @@
-// Only fixed event names and library IDs, "custom", or "sample" enter this module.
+// Practice events contain only fixed names and library IDs, "custom", or "sample".
 // https://www.goatcounter.com/help/start · /help/js · /help/events
 (() => {
+  const entryURL = new URL(location.href);
+  const sources = entryURL.searchParams.getAll('utm_source');
+  const campaignSource = sources.length === 1 && /^[a-z0-9-]+$/.test(sources[0]) ? sources[0] : '';
+  let referrerDomain = '';
+  try {
+    const url = new URL(document.referrer);
+    if (['https:', 'http:'].includes(url.protocol)) referrerDomain = url.hostname;
+  } catch (_) { /* Direct visits have no referrer. */ }
+  // Prefer an explicit validated source; never pass a raw URL or query string.
+  const entrySource = campaignSource || referrerDomain;
+  if (entryURL.searchParams.has('utm_source')){
+    entryURL.searchParams.delete('utm_source');
+    history.replaceState(history.state, '', entryURL.pathname + entryURL.search + entryURL.hash);
+  }
   const local = /(^|\.)localhost$|^127\.|^\[::1\]$/.test(location.hostname) || location.protocol === 'file:';
   const events = new Set(['script-open', 'play-start', 'play-complete', 'dictionary-confirm', 'dictionary-cancel', 'share-copy']);
   let ready = false, failed = false;
@@ -34,10 +48,11 @@
     }
     // count.js also includes location.search in `q`, even with an explicit path.
     // Allowlist its payload before the first manual count so query text cannot leak.
+    // `r` contains only the validated source or the referring hostname captured above.
     const getData = counter.get_data;
     counter.get_data = vars => {
       const data = getData(vars);
-      return { p: data.p, t: data.t, e: data.e, s: data.s, b: data.b, ns: data.ns };
+      return { p: data.p, t: data.t, e: data.e, s: data.s, b: data.b, ns: data.ns, r: entrySource };
     };
     ready = true;
     send({ path: '/karaoke-reader/', title: 'Karaoke Reader', referrer: '', event: false });
