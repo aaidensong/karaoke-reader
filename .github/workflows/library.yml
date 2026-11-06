@@ -13,6 +13,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint:library
+      - name: Check valid common-word fixture
+        run: npm run lint:library -- tools/fixtures/valid
       - run: npm run build:library
       - name: Check committed library index
         run: |
