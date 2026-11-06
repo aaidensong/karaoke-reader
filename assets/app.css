@@ -90,3 +90,28 @@ dialog p{font-size:12px;line-height:1.6}
 label.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--dim);margin-right:auto}
 @media (max-width:560px){ :root{--size:28px} .grp.opt{display:none} }
 @media (prefers-reduced-motion:reduce){ .reel,.ln{transition:none} }
+
+/* Library and structured-script additions; the reading fill remains on .t only. */
+.script-info{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 16px 10px;font-size:12px}
+#script-name{flex:1}
+#script-status{font-size:11px;flex-basis:100%}
+#script-status:empty{display:none}
+#script-notice{margin:0;padding:0 16px 10px;font-size:11px;line-height:1.5;white-space:pre-line}
+#share-link{margin:0 16px 10px;padding:8px;color:var(--fg);background:var(--panel);border:1px solid var(--line)}
+.ln.other,.ln.other.cur{font-family:var(--f-ui);font-weight:400;color:var(--dim);opacity:.75}
+.ln.other.past{opacity:.28}
+.stage{min-height:0}
+#library{width:min(1040px,calc(100% - 32px));height:min(820px,calc(100% - 32px))}
+.library-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.library-heading h2{margin:0}
+#library-categories{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+#library-categories button[aria-pressed="true"]{border-color:var(--fill);background:var(--fill-soft);color:var(--fill)}
+.library-filters{display:flex;gap:12px;flex-wrap:wrap}
+.library-filters label{display:flex;flex-direction:column;gap:6px}
+.library-filters label:first-child{flex:1;min-width:180px}
+.library-filters input,.library-filters select{box-sizing:border-box;min-height:36px;max-width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--stage);color:var(--fg);font:inherit}
+#library-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:12px}
+.library-card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:16px;line-height:1.6;overflow-wrap:anywhere}
+.library-card strong{font-size:14px}
+.library-card small{font-size:11px}
+select:focus-visible{outline:2px solid var(--fill);outline-offset:2px}

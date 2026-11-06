@@ -13,10 +13,20 @@
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/app.css">
 <script src="assets/i18n.ko.js" defer></script>
+<script src="assets/script-format.js" defer></script>
 <script src="assets/app.js" defer></script>
 </head>
 <body>
 <div class="top"><b data-i18n="appName"></b><span id="stat">0 / 0 · 0:00</span></div>
+<div class="script-info">
+  <button id="librarybtn" data-i18n="library"></button>
+  <span id="script-name"></span>
+  <button id="share" data-i18n="share" hidden></button>
+  <label class="chk" id="own-lines-label" hidden><input id="own-lines" type="checkbox"><span data-i18n="ownLines"></span></label>
+  <span id="script-status" role="status" aria-live="polite"></span>
+</div>
+<p id="script-notice" hidden></p>
+<input id="share-link" readonly hidden data-i18n-aria-label="shareLink">
 
 <div class="stage" id="stage" data-i18n-title="stageTitle">
   <div class="guide"></div>
@@ -38,6 +48,19 @@
   <button id="settingsbtn" data-i18n="settings"></button>
   <button id="helpbtn" data-i18n-aria-label="shortcuts">?</button>
 </div>
+
+<dialog id="library" aria-labelledby="library-title">
+  <div class="library-heading"><h2 id="library-title" data-i18n="library"></h2><button id="library-close" data-i18n="close"></button></div>
+  <nav id="library-categories" data-i18n-aria-label="categories"></nav>
+  <div class="library-filters">
+    <label><span data-i18n="searchScripts"></span><input id="library-search" type="search" data-i18n-placeholder="searchPlaceholder"></label>
+    <label><span data-i18n="level"></span><select id="library-level"></select></label>
+    <label><span data-i18n="scriptType"></span><select id="library-type"></select></label>
+  </div>
+  <p id="library-status" role="status" aria-live="polite"></p>
+  <button id="library-retry" data-i18n="retry" hidden></button>
+  <div id="library-list"></div>
+</dialog>
 
 <dialog id="settings" aria-labelledby="settings-title">
   <h2 id="settings-title" data-i18n="settings"></h2>
@@ -86,6 +109,7 @@
       <span id="fmsg" data-i18n="supportedFiles"></span>
     </div>
     <textarea id="src" spellcheck="false"></textarea>
+    <p id="script-error" role="alert" hidden></p>
     <div class="row">
       <label class="chk"><input id="byline" type="checkbox"><span data-i18n="byLine"></span></label>
       <button id="cancel" data-i18n="close"></button>

@@ -1,0 +1,14 @@
+# 한 줄에 한 단어 또는 구. 대소문자 무시, 단어 경계 기준.
+# 전체 실명·브랜드를 자동 판별하지 못하므로 작성자 검토를 함께 진행한다.
+CELPIP
+IELTS
+TOEFL
+TOEIC
+Google
+Apple
+Microsoft
+Amazon
+Starbucks
+McDonald's
+OpenAI
+ChatGPT

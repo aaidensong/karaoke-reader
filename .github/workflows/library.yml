@@ -1,0 +1,21 @@
+name: Library and app checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:library
+      - run: npm run build:library
+      - name: Check committed library index
+        run: |
+          git ls-files --error-unmatch library/index.json
+          git diff --exit-code -- library/index.json
+      - run: npm run check:sw

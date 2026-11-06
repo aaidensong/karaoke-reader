@@ -12,6 +12,8 @@ const store = {get(k,d){try{const v=localStorage.getItem('kr.'+k);return v===nul
 let text = store.get('text', SAMPLE), byLine = store.get('byline', false);
 let lines = [], idx = 0, wordIdx = 0, wordStart = 0, playing = false, raf = 0, gapUntil = 0, elapsed = 0, lastT = 0;
 let wpm = store.get('wpm',150), size = store.get('size',40), gapMs = store.get('gap',400);
+let currentScriptId = null, ownLines = store.get('ownLines', false) === true;
+$('own-lines').checked = ownLines;
 
 function split(t){
   const rows = t.replace(/\r/g,'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
@@ -29,9 +31,17 @@ function durations(words){
 }
 
 function build(){
-  lines = split(text).map(s => { const m = s.match(/^(#{1,6})\s+(.*)$/); const t = m ? m[2] : s; return { s: t, h: m ? m[1].length : 0, words: t.split(/\s+/) }; });
+  const parsed = KR_SCRIPT.parse(text);
+  const rows = parsed.structured ? parsed.paragraphs.flatMap(p =>
+    split(p.heading ? '## ' + p.text.replace(/^##\s+/, '') : p.text).map(s => ({ s, other: p.other }))) : split(text).map(s => ({ s, other: false }));
+  lines = rows.map(({ s, other }) => { const m = s.match(/^(#{1,6})\s+(.*)$/); const t = m ? m[2] : s; return { s: t, h: m ? m[1].length : 0, words: t.split(/\s+/), other }; });
+  $('script-name').textContent = parsed.structured ? parsed.meta.title || '' : '';
+  $('script-notice').textContent = parsed.notices.join('\n');
+  $('script-notice').hidden = !parsed.notices.length;
+  $('own-lines-label').hidden = parsed.meta.type !== 'dialogue';
+  $('share').hidden = !currentScriptId;
   $('reel').innerHTML = lines.map((l,i) =>
-    `<div class="ln${l.h?' hd h'+Math.min(l.h,3):''}" data-i="${i}">${l.words.map(w=>`<span class="w"><span class="t">${w.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span></span>`).join(' ')}</div>`).join('');
+    `<div class="ln${l.h?' hd h'+Math.min(l.h,3):''}${l.other?' other':''}" data-i="${i}">${l.words.map(w=>`<span class="w"><span class="t">${w.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span></span>`).join(' ')}</div>`).join('');
   idx = Math.min(idx, Math.max(0, lines.length-1)); wordIdx = 0; elapsed = 0;
   render(true);
 }
@@ -40,10 +50,10 @@ function render(jump){
   const els = $('reel').children;
   for (let i=0;i<els.length;i++){
     const el = els[i];
-    el.className = 'ln' + (lines[i].h?' hd h'+Math.min(lines[i].h,3):'') + (i===idx?' cur':i<idx?' past':'') + (i===idx&&ipaOn&&dict?' ipa':'');
-    if (i===idx && ipaOn && dict) addIpa(el, i);
+    el.className = 'ln' + (lines[i].h?' hd h'+Math.min(lines[i].h,3):'') + (lines[i].other?' other':'') + (i===idx?' cur':i<idx?' past':'') + (i===idx&&ipaOn&&dict&&!lines[i].other?' ipa':'');
+    if (i===idx && ipaOn && dict && !lines[i].other) addIpa(el, i);
     if (i===idx){
-      [...el.children].forEach((w,j)=>{ w.className = 'w' + (j<wordIdx?' done':j===wordIdx&&playing?' on':''); w.style.removeProperty('--p'); });
+      [...el.children].forEach((w,j)=>{ w.className = 'w' + (lines[i].other?'':j<wordIdx?' done':j===wordIdx&&playing?' on':''); w.style.removeProperty('--p'); });
     } else [...el.children].forEach(w=>w.className='w');
   }
   requestAnimationFrame(center);
@@ -61,7 +71,10 @@ function stat(){
 }
 
 let durs = [];
-function startLine(t){ durs = lines[idx] ? durations(lines[idx].words) : []; wordIdx = 0; wordStart = t; render(); }
+function lineDurations(){
+  return !lines[idx] ? [] : lines[idx].other ? [ownLines ? 1000 : lines[idx].words.length * 60000 / wpm] : durations(lines[idx].words);
+}
+function startLine(t){ durs = lineDurations(); wordIdx = 0; wordStart = t; render(); }
 
 function tick(t){
   if (!playing) return;
@@ -74,6 +87,14 @@ function tick(t){
   }
   const line = $('reel').children[idx];
   if (!line){ stop(); return; }
+  if (lines[idx].other){
+    if (t - wordStart >= durs[0]){
+      wordIdx = lines[idx].words.length;
+      // Own-lines mode holds the partner's line for one second including the transition.
+      gapUntil = t + (ownLines ? .001 : gapMs);
+    }
+    stat(); raf = requestAnimationFrame(tick); return;
+  }
   const d = durs[wordIdx], p = (t - wordStart) / d;
   const w = line.children[wordIdx];
   if (p >= 1){
@@ -92,7 +113,7 @@ function play(){
   if (idx >= lines.length-1 && wordIdx >= lines[idx].words.length) { idx = 0; wordIdx = 0; }
   playing = true; $('playlbl').textContent = KR_I18N.pause;
   const t = performance.now(); lastT = t;
-  durs = durations(lines[idx].words);
+  durs = lineDurations();
   wordStart = t; render();
   raf = requestAnimationFrame(tick);
 }
@@ -104,7 +125,7 @@ function go(d){
 }
 
 function setWpm(v){ wpm = Math.max(60, Math.min(400, v)); $('wpm').value = wpm; $('wpmv').textContent = wpm; store.set('wpm', wpm);
-  if (playing && lines[idx]){ const t = performance.now(); const p = Math.min(1,(t-wordStart)/durs[wordIdx]); durs = durations(lines[idx].words); wordStart = t - p*(durs[wordIdx]||0); } }
+  if (playing && lines[idx]){ const t = performance.now(), i = lines[idx].other ? 0 : wordIdx; const p = Math.min(1,(t-wordStart)/(durs[i]||1)); durs = lineDurations(); wordStart = t - p*(durs[i]||0); } }
 function setSize(v){ size = v; $('fs').value = v; $('fsv').textContent = v; document.documentElement.style.setProperty('--size', v+'px'); store.set('size', v); setTimeout(center, 320); }
 function setGap(v){ gapMs = v; $('gap').value = v; $('gapv').textContent = (v/1000).toFixed(1)+'s'; store.set('gap', v); }
 
@@ -119,7 +140,13 @@ $('edit').onclick = openEditor;
 $('cancel').onclick = () => $('drawer').hidden = true;
 $('drawer').onclick = e => { if (e.target.id==='drawer') $('drawer').hidden = true; };
 $('apply').onclick = () => {
-  text = $('src').value.trim() || SAMPLE; byLine = $('byline').checked;
+  const next = $('src').value.trim() || SAMPLE, parsed = KR_SCRIPT.parse(next);
+  if (parsed.errors.length){ $('script-error').textContent = KR_I18N.scriptInvalid + ' ' + parsed.errors.join(' '); $('script-error').hidden = false; return; }
+  text = next; byLine = $('byline').checked;
+  currentScriptId = null; libraryLoad?.abort();
+  history.replaceState(null, '', location.pathname + location.search);
+  $('script-status').textContent = ''; $('share-link').hidden = true;
+  if (parsed.structured) setWpm(parsed.meta.wpm);
   store.set('text', text); store.set('byline', byLine);
   idx = 0; $('drawer').hidden = true; build();
 };
@@ -361,13 +388,13 @@ $('dict-delete').onclick = deleteDict;
 // update only the current line so the word being filled is not reset
 function renderKeep(){
   const el = $('reel').children[idx]; if (!el) return;
-  el.classList.toggle('ipa', ipaOn && !!dict);
-  if (ipaOn && dict) addIpa(el, idx);
+  el.classList.toggle('ipa', ipaOn && !!dict && !lines[idx].other);
+  if (ipaOn && dict && !lines[idx].other) addIpa(el, idx);
   setTimeout(center, 30);
 }
 $('ipa').onclick = () => setIpa(!ipaOn);
 
-function openEditor(){ stop(); $('src').value = text; $('byline').checked = byLine; $('drawer').hidden = false; $('src').focus(); }
+function openEditor(){ stop(); $('src').value = text; $('byline').checked = byLine; $('script-error').hidden = true; $('drawer').hidden = false; $('src').focus(); }
 
 function restartLine(){ gapUntil = 0; wordIdx = 0; if (playing) startLine(performance.now()); else render(); }
 function toggleHelp(force){ const h = $('help'); h.hidden = force === undefined ? !h.hidden : !force; }
@@ -381,7 +408,7 @@ document.addEventListener('click', e => { const b = e.target.closest('button'); 
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ $('drawer').hidden = true; toggleHelp(false); return; }
-  if (!$('drawer').hidden || $('settings').open) return;
+  if (!$('drawer').hidden || $('settings').open || $('library').open) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = e.target.tagName;
   if ((tag === 'INPUT' && e.target.type !== 'range') || tag === 'TEXTAREA') return;
@@ -408,9 +435,149 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('resize', center);
 
+// The index stays in memory; script bodies are fetched only when selected, never put in Cache API.
+let libraryIndex = null, indexRequest = null, libraryLoad = null, failedScript = null;
+let category = '', filterFrame = 0;
+const message = (key, values) => KR_I18N[key].replace(/\{(\w+)\}/g, (_, name) => values[name]);
+function option(value, label){ const el = document.createElement('option'); el.value = value; el.textContent = label; return el; }
+function categoryLabel(value){ return KR_I18N.categoryLabels[KR_SCRIPT.categories.indexOf(value)]; }
+for (const value of ['', ...KR_SCRIPT.categories]){
+  const button = document.createElement('button');
+  button.type = 'button'; button.dataset.category = value;
+  button.textContent = value ? categoryLabel(value) : KR_I18N.allCategories;
+  button.setAttribute('aria-pressed', value === '');
+  button.onclick = () => {
+    category = value;
+    for (const tab of $('library-categories').children) tab.setAttribute('aria-pressed', tab === button);
+    renderLibrary();
+  };
+  $('library-categories').append(button);
+}
+$('library-level').append(option('', KR_I18N.allLevels), ...KR_SCRIPT.levels.map(level => option(level, level)));
+$('library-type').append(option('', KR_I18N.allTypes), ...KR_SCRIPT.types.map(type => option(type, KR_I18N.typeLabels[type])));
+function renderLibrary(){
+  if (!libraryIndex) return;
+  const search = $('library-search').value.trim().toLocaleLowerCase();
+  const matches = libraryIndex.filter(s => (!category || s.category === category) &&
+    (!$('library-level').value || s.level === $('library-level').value) &&
+    (!$('library-type').value || s.type === $('library-type').value) &&
+    `${s.title} ${s.situation}`.toLocaleLowerCase().includes(search));
+  const fragment = document.createDocumentFragment();
+  for (const script of matches){
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'library-card';
+    const title = document.createElement('strong'); title.textContent = script.title;
+    const situation = document.createElement('span'); situation.textContent = script.situation;
+    const details = document.createElement('small');
+    details.textContent = [categoryLabel(script.category), script.level, KR_I18N.typeLabels[script.type],
+      `${script.wpm} ${KR_I18N.wpm}`, message('scriptMinutes', { minutes: script.minutes })].join(' · ');
+    button.append(title, situation, details);
+    button.onclick = () => openLibraryScript(script.id);
+    fragment.append(button);
+  }
+  $('library-list').replaceChildren(fragment);
+  $('library-status').textContent = matches.length ? message('libraryCount', { count: matches.length }) : KR_I18N.libraryEmpty;
+}
+async function ensureLibraryIndex(){
+  if (libraryIndex) return libraryIndex;
+  if (indexRequest) return indexRequest;
+  $('library-status').textContent = KR_I18N.libraryLoading; $('library-retry').hidden = true;
+  indexRequest = (async () => {
+    const response = await fetch(new URL('library/index.json', appBase), { cache: 'no-store' });
+    if (!response.ok) throw new Error();
+    const data = await response.json(), ids = new Set();
+    if (!Array.isArray(data) || data.some(s => {
+      if (!s || typeof s.id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s.id) || ids.has(s.id) ||
+        !KR_SCRIPT.categories.includes(s.category) || !KR_SCRIPT.levels.includes(s.level) || !KR_SCRIPT.types.includes(s.type) ||
+        typeof s.title !== 'string' || typeof s.situation !== 'string' || !Number.isInteger(s.wpm) || s.wpm < 60 || s.wpm > 250 ||
+        !Number.isInteger(s.minutes) || s.minutes < 1 || s.minutes > 10 || s.path !== `library/${s.category}/${s.id}.md`) return true;
+      ids.add(s.id); return false;
+    })) throw new Error();
+    libraryIndex = data; renderLibrary(); return data;
+  })();
+  try { return await indexRequest; }
+  catch (error){ $('library-status').textContent = KR_I18N.libraryError; $('library-retry').hidden = false; throw error; }
+  finally { indexRequest = null; }
+}
+async function openLibrary(){
+  stop(); $('library').showModal();
+  try { await ensureLibraryIndex(); renderLibrary(); } catch (_) {}
+  $('library-search').focus();
+}
+async function openLibraryScript(id, updateHash = true){
+  stop(); libraryLoad?.abort();
+  const controller = new AbortController(); libraryLoad = controller; failedScript = id;
+  $('script-status').textContent = KR_I18N.scriptLoading;
+  $('library-status').textContent = KR_I18N.scriptLoading;
+  $('share-link').hidden = true;
+  try {
+    const scripts = await ensureLibraryIndex();
+    if (controller.signal.aborted) return;
+    const script = scripts.find(s => s.id === id);
+    if (!script){
+      $('script-status').textContent = KR_I18N.scriptNotFound;
+      $('library-status').textContent = KR_I18N.scriptNotFound;
+      return;
+    }
+    const response = await fetch(new URL(script.path, appBase), { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error();
+    const source = await response.text(), parsed = KR_SCRIPT.parse(source);
+    if (!parsed.structured || parsed.errors.length || parsed.meta.id !== id || parsed.meta.category !== script.category) throw new Error();
+    if (controller.signal.aborted) return;
+    stop();
+    text = source; byLine = false; currentScriptId = id; idx = 0;
+    store.set('text', text); store.set('byline', false);
+    setWpm(parsed.meta.wpm); build();
+    const hash = '#script=' + encodeURIComponent(id);
+    if (updateHash && location.hash !== hash) history.pushState(null, '', hash);
+    failedScript = null; $('script-status').textContent = ''; $('library-retry').hidden = true;
+    if ($('library').open) $('library').close();
+    $('librarybtn').focus();
+  } catch (error){
+    if (controller.signal.aborted) return;
+    $('script-status').textContent = KR_I18N.scriptLoadError;
+    $('library-status').textContent = KR_I18N.scriptLoadError;
+    $('library-retry').hidden = false;
+  }
+}
+function openHashScript(){
+  const id = new URLSearchParams(location.hash.slice(1)).get('script');
+  if (id) openLibraryScript(id, false);
+  else {
+    libraryLoad?.abort(); currentScriptId = null; failedScript = null;
+    $('share').hidden = true; $('share-link').hidden = true; $('script-status').textContent = '';
+  }
+}
+$('librarybtn').onclick = openLibrary;
+$('library-close').onclick = () => $('library').close();
+$('library-retry').onclick = async () => {
+  if (failedScript) await openLibraryScript(failedScript);
+  else { try { await ensureLibraryIndex(); } catch (_) {} }
+};
+for (const id of ['library-search', 'library-level', 'library-type']) $(id).oninput = () => {
+  cancelAnimationFrame(filterFrame); filterFrame = requestAnimationFrame(renderLibrary);
+};
+$('own-lines').onchange = () => {
+  ownLines = $('own-lines').checked; store.set('ownLines', ownLines);
+  if (lines[idx]?.other) restartLine();
+};
+$('share').onclick = async () => {
+  if (!currentScriptId) return;
+  const url = new URL('./', appBase); url.hash = 'script=' + encodeURIComponent(currentScriptId);
+  try {
+    await navigator.clipboard.writeText(url.href);
+    $('script-status').textContent = KR_I18N.shareCopied;
+  } catch (_){
+    $('share-link').hidden = false; $('share-link').value = url.href;
+    $('share-link').focus(); $('share-link').select();
+    $('script-status').textContent = KR_I18N.shareFallback;
+  }
+};
+window.addEventListener('hashchange', openHashScript);
+
 setWpm(wpm); setSize(size); setGap(gapMs); build();
 updateIpaButton();
 const dictReady = restoreDict();
+openHashScript();
 
 // Install a complete app version, then reload existing controlled pages once on activation.
 if ('serviceWorker' in navigator){
