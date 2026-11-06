@@ -1,0 +1,49 @@
+// Bump APP_VERSION whenever a cached app file changes. Keep dictionary storage across releases.
+const APP_VERSION = 'v1';
+const BASE = new URL('./', self.location.href);
+const PREFIX = `karaoke-reader:${BASE.pathname}:`;
+const APP_CACHE = `${PREFIX}app-${APP_VERSION}`;
+const DICT_CACHE = `${PREFIX}dictionary-v1`;
+const DICT_URL = new URL('data/ipa-en-us.json', BASE).href;
+const APP_FILES = [
+  './', 'index.html', 'assets/app.css', 'assets/app.js', 'assets/i18n.ko.js',
+  'manifest.webmanifest', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
+  'assets/icons/icon-maskable-512.png', 'assets/icons/apple-touch-icon.png'
+].map(file => new URL(file, BASE).href);
+
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(APP_CACHE);
+    // A failed install leaves the previous complete app version active.
+    await cache.addAll(APP_FILES.map(url => new Request(url, { cache: 'reload' })));
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    await Promise.all((await caches.keys())
+      .filter(name => name.startsWith(`${PREFIX}app-`) && name !== APP_CACHE)
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== BASE.origin) return;
+  if (url.href === DICT_URL){
+    // Only the page writes validated, consented downloads. No automatic download or recaching.
+    event.respondWith((async () => {
+      const cache = await caches.open(DICT_CACHE);
+      return (await cache.match(DICT_URL)) || fetch(request);
+    })());
+  } else if (APP_FILES.includes(url.href) ||
+             (request.mode === 'navigate' && [BASE.pathname, `${BASE.pathname}index.html`].includes(url.pathname))){
+    event.respondWith((async () => {
+      const cache = await caches.open(APP_CACHE);
+      return (await cache.match(request.mode === 'navigate' ? BASE.href : request)) || fetch(request);
+    })());
+  }
+});

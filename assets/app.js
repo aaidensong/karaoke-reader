@@ -160,8 +160,49 @@ document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth 
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('over'); importFile(e.dataTransfer.files[0]); });
 
-// pronunciation: download only after consent; keep the dictionary in this page session
+// The page and service worker share a scope-specific dictionary cache, independent of app versions.
+const appBase = new URL('./', location.href);
+const dictURL = new URL('data/ipa-en-us.json', appBase).href;
+const dictCacheName = `karaoke-reader:${appBase.pathname}:dictionary-v1`;
 let dict = null, ipaOn = false, dictController = null, dictState = 'idle';
+let dictCached = false, dictDeleting = false, dictPersistence = Promise.resolve();
+function validDict(data){
+  return data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length &&
+    Object.values(data).every(value => typeof value === 'string' && value.length);
+}
+async function restoreDict(){
+  const remembered = store.get('ipa', false) === true;
+  try {
+    const cache = await caches.open(dictCacheName);
+    const response = await cache.match(dictURL);
+    if (response){
+      dictCached = true;
+      const data = await response.json();
+      if (!validDict(data)) throw new Error();
+      dict = data;
+    }
+  } catch (error){
+    // Corrupt or inaccessible storage must never trigger a network request.
+    try { await (await caches.open(dictCacheName)).delete(dictURL); dictCached = false; } catch (_) {}
+  }
+  ipaOn = remembered && !!dict;
+  store.set('ipa', ipaOn);
+  updateIpaButton();
+  renderKeep();
+}
+async function persistDict(json, controller){
+  try {
+    const cache = await caches.open(dictCacheName);
+    // Build a decoded response: compressed Content-Length/Encoding no longer describe these bytes.
+    await cache.put(dictURL, new Response(json, { headers: { 'Content-Type': 'application/json; charset=utf-8' } }));
+    if (dictController !== controller || controller.signal.aborted){
+      await cache.delete(dictURL);
+      return false;
+    }
+    dictCached = true;
+    return true;
+  } catch (error){ return false; }
+}
 function lookup(raw){
   const w = raw.toLowerCase().replace(/[‘’]/g, "'").replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, '');
   if (!w || /^\d+$/.test(w)) return null;
@@ -201,27 +242,33 @@ function updateDictSettings(message){
   $('dict-download').hidden = dictState !== 'loading';
   $('dict-start').hidden = dictState !== 'prompt';
   $('dict-retry').hidden = dictState !== 'error';
-  $('dict-delete').disabled = !dict;
+  $('dict-delete').disabled = dictDeleting || (!dict && !dictCached);
   $('settings-close').textContent = dictState === 'loading' ? KR_I18N.cancelDownload : KR_I18N.close;
-  $('dict-status').textContent = message || (dict ? KR_I18N.ipaReady : KR_I18N.ipaMissing);
+  $('dict-status').textContent = message || (dict ? (dictCached ? KR_I18N.ipaReady : KR_I18N.ipaMemoryOnly) : KR_I18N.ipaMissing);
 }
-function openSettings(){
+async function openSettings(){
+  await dictReady;
   updateDictSettings();
   if (!$('settings').open) $('settings').showModal();
 }
-function setIpa(on){
+async function setIpa(on){
+  await dictReady;
+  if (dictDeleting) return;
   if (on && !dict){
     dictState = 'prompt';
-    openSettings();
+    await openSettings();
     $('dict-start').focus();
     return;
   }
   ipaOn = on;
+  store.set('ipa', ipaOn);
   updateIpaButton();
   renderKeep();
 }
 async function downloadDict(){
-  if (dict || dictController || !['prompt', 'error'].includes(dictState)) return;
+  await dictReady;
+  await dictPersistence;
+  if (dict || dictController || dictDeleting || !['prompt', 'error'].includes(dictState)) return;
   const controller = new AbortController();
   dictController = controller;
   dictState = 'loading';
@@ -229,12 +276,14 @@ async function downloadDict(){
   updateDictSettings(KR_I18N.ipaDownloading);
   $('settings-close').focus();
   try {
-    // no-store also prevents a deleted dictionary being restored from the HTTP cache.
-    const response = await fetch('data/ipa-en-us.json', { signal: controller.signal, cache: 'no-store' });
+    // no-store bypasses the HTTP cache; explicit Cache API writes below are separate.
+    // The worker can still serve its cache, and deletion removes that entry before the next consent.
+    const response = await fetch(dictURL, { signal: controller.signal, cache: 'no-store' });
     if (!response.ok) throw new Error();
     const reader = response.body.getReader();
     // Content-Length may describe compressed bytes; use indeterminate progress in that case.
-    const total = response.headers.get('Content-Encoding') ? 0 : Number(response.headers.get('Content-Length'));
+    const compressed = !!response.headers.get('Content-Encoding');
+    const total = compressed ? 0 : Number(response.headers.get('Content-Length'));
     const decoder = new TextDecoder();
     let received = 0, json = '';
     while (true){
@@ -244,20 +293,23 @@ async function downloadDict(){
       json += decoder.decode(value, { stream: true });
       const percent = total > 0 ? Math.min(99, Math.floor(received / total * 100)) : null;
       if (percent !== null) $('dict-progress').value = percent;
-      $('dict-status').textContent = `${KR_I18N.ipaDownloading} ${percent === null ? '' : percent + '% · '}${(received / 1024).toFixed(1)} KB ${KR_I18N.ipaReceived}`;
+      $('dict-status').textContent = compressed ? KR_I18N.ipaDownloading :
+        `${KR_I18N.ipaDownloading} ${percent === null ? '' : percent + '% · '}${(received / 1024).toFixed(1)} KB ${KR_I18N.ipaReceived}`;
     }
     json += decoder.decode();
     const data = JSON.parse(json);
-    if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.keys(data).length ||
-        !Object.values(data).every(value => typeof value === 'string' && value.length)) throw new Error();
+    if (!validDict(data)) throw new Error();
+    if (dictController !== controller || controller.signal.aborted) return;
+    dictPersistence = persistDict(json, controller);
+    const saved = await dictPersistence;
     if (dictController !== controller || controller.signal.aborted) return;
     dict = data;
     dictController = null;
     dictState = 'idle';
     $('dict-progress').value = 100;
-    updateDictSettings(KR_I18N.ipaReady);
-    setIpa(true);
-    $('settings').close();
+    updateDictSettings(saved ? KR_I18N.ipaReady : KR_I18N.ipaMemoryOnly);
+    await setIpa(true);
+    if (saved) $('settings').close();
   } catch (error){
     if (dictController !== controller) return;
     dictController = null;
@@ -273,16 +325,31 @@ function cancelDictDownload(){
   }
   dictState = 'idle';
 }
-function deleteDict(){
+async function deleteDict(){
+  await dictReady;
+  if (dictDeleting) return;
+  dictDeleting = true;
   cancelDictDownload();
   dict = null;
-  setIpa(false);
+  ipaOn = false;
+  store.set('ipa', false);
+  updateIpaButton();
   for (const el of $('reel').children){
     delete el.dataset.ipaDone;
     el.classList.remove('ipa');
     el.querySelectorAll('.ph').forEach(ph => ph.remove());
   }
-  updateDictSettings(KR_I18N.ipaDeleted);
+  updateDictSettings(KR_I18N.ipaDeleting);
+  let removed = false;
+  try {
+    await dictPersistence;
+    if ('caches' in window) await (await caches.open(dictCacheName)).delete(dictURL);
+    dictCached = false;
+    removed = true;
+  } catch (error){ dictCached = true; }
+  dictDeleting = false;
+  updateDictSettings(removed ? KR_I18N.ipaDeleted : KR_I18N.ipaDeleteError);
+  renderKeep();
   $('settings-close').focus();
 }
 $('settingsbtn').onclick = openSettings;
@@ -343,3 +410,15 @@ window.addEventListener('resize', center);
 
 setWpm(wpm); setSize(size); setGap(gapMs); build();
 updateIpaButton();
+const dictReady = restoreDict();
+
+// Install a complete app version, then reload existing controlled pages once on activation.
+if ('serviceWorker' in navigator){
+  const wasControlled = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (wasControlled && !reloading){ reloading = true; location.reload(); }
+  });
+  navigator.serviceWorker.register(new URL('sw.js', appBase), { updateViaCache: 'none' })
+    .then(registration => registration.update()).catch(() => {});
+}
