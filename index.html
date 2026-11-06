@@ -32,8 +32,26 @@
   <span class="spacer"></span>
   <button id="ipa" aria-pressed="false"><span id="ipalbl" data-i18n="ipaOff"></span><kbd>P</kbd></button>
   <button id="edit"><span data-i18n="editScript"></span><kbd>E</kbd></button>
+  <button id="settingsbtn" data-i18n="settings"></button>
   <button id="helpbtn" data-i18n-aria-label="shortcuts">?</button>
 </div>
+
+<dialog id="settings" aria-labelledby="settings-title">
+  <h2 id="settings-title" data-i18n="settings"></h2>
+  <h3 data-i18n="ipaDictionary"></h3>
+  <p id="dict-consent" data-i18n="ipaConsent" hidden></p>
+  <p data-i18n="ipaSessionNote"></p>
+  <div id="dict-download" hidden>
+    <progress id="dict-progress" max="100" data-i18n-aria-label="ipaProgress"></progress>
+  </div>
+  <p id="dict-status" role="status" aria-live="polite"></p>
+  <div class="row">
+    <button id="dict-delete" data-i18n="ipaDelete" disabled></button>
+    <button id="dict-start" data-i18n="ipaDownload" hidden></button>
+    <button id="dict-retry" data-i18n="retry" hidden></button>
+    <button id="settings-close" data-i18n="close"></button>
+  </div>
+</dialog>
 
 <div class="help" id="help" hidden>
   <div class="card">
