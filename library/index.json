@@ -406,14 +406,14 @@
     "id": "social-comfort-friend",
     "title": "낙담한 친구의 이야기 들어주기",
     "category": "09-social",
-    "situation": "友人を気遣う",
+    "situation": "친구 위로하기",
     "type": "dialogue",
     "level": "C1",
     "wpm": 170,
     "minutes": 2,
     "region": "general",
     "path": "library/09-social/social-comfort-friend.md",
-    "sha256": "830618d06a1b4bc7621f1214753a7f3e9ea57a9748f672fa1090f80d9623d98b"
+    "sha256": "03ba758b33fea092b820fb90c00b4c64dbe8d3c33b57b89e7cf139f8df2c853c"
   },
   {
     "id": "social-decline-invitation",

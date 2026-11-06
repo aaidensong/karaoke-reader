@@ -2,7 +2,7 @@
 id: social-comfort-friend
 title: 낙담한 친구의 이야기 들어주기
 category: 09-social
-situation: 友人を気遣う
+situation: 친구 위로하기
 type: dialogue
 level: C1
 wpm: 170
