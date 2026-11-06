@@ -160,8 +160,8 @@ document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth 
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('over'); importFile(e.dataTransfer.files[0]); });
 
-// pronunciation: CMU Pronouncing Dictionary converted to IPA (US), loaded on first use
-let dict = null, ipaOn = store.get('ipa', false), loadingDict = null;
+// pronunciation: download only after consent; keep the dictionary in this page session
+let dict = null, ipaOn = false, dictController = null, dictState = 'idle';
 function lookup(raw){
   const w = raw.toLowerCase().replace(/[‘’]/g, "'").replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, '');
   if (!w || /^\d+$/.test(w)) return null;
@@ -192,21 +192,105 @@ function addIpa(el, li){
     w.append(ph);
   });
 }
-function ensureDict(){
-  if (dict) return Promise.resolve();
-  return loadingDict ||= fetch('ipa.json').then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(d => { dict = d; })
-    .catch(e => { loadingDict = null; throw e; });
+function updateIpaButton(){
+  $('ipa').setAttribute('aria-pressed', ipaOn);
+  $('ipalbl').textContent = ipaOn ? KR_I18N.ipaOn : KR_I18N.ipaOff;
 }
-async function setIpa(on){
-  ipaOn = on; store.set('ipa', on);
-  $('ipa').setAttribute('aria-pressed', on);
-  $('ipalbl').textContent = on ? (dict ? KR_I18N.ipaOn : KR_I18N.loading) : KR_I18N.ipaOff;
-  if (on) {
-    try { await ensureDict(); $('ipalbl').textContent = KR_I18N.ipaOn; }
-    catch(e) { ipaOn = false; $('ipa').setAttribute('aria-pressed', false); $('ipalbl').textContent = KR_I18N.ipaError; return; }
+function updateDictSettings(message){
+  $('dict-consent').hidden = dictState === 'idle';
+  $('dict-download').hidden = dictState !== 'loading';
+  $('dict-start').hidden = dictState !== 'prompt';
+  $('dict-retry').hidden = dictState !== 'error';
+  $('dict-delete').disabled = !dict;
+  $('settings-close').textContent = dictState === 'loading' ? KR_I18N.cancelDownload : KR_I18N.close;
+  $('dict-status').textContent = message || (dict ? KR_I18N.ipaReady : KR_I18N.ipaMissing);
+}
+function openSettings(){
+  updateDictSettings();
+  if (!$('settings').open) $('settings').showModal();
+}
+function setIpa(on){
+  if (on && !dict){
+    dictState = 'prompt';
+    openSettings();
+    $('dict-start').focus();
+    return;
   }
+  ipaOn = on;
+  updateIpaButton();
   renderKeep();
 }
+async function downloadDict(){
+  if (dict || dictController || !['prompt', 'error'].includes(dictState)) return;
+  const controller = new AbortController();
+  dictController = controller;
+  dictState = 'loading';
+  $('dict-progress').removeAttribute('value');
+  updateDictSettings(KR_I18N.ipaDownloading);
+  $('settings-close').focus();
+  try {
+    // no-store also prevents a deleted dictionary being restored from the HTTP cache.
+    const response = await fetch('data/ipa-en-us.json', { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) throw new Error();
+    const reader = response.body.getReader();
+    // Content-Length may describe compressed bytes; use indeterminate progress in that case.
+    const total = response.headers.get('Content-Encoding') ? 0 : Number(response.headers.get('Content-Length'));
+    const decoder = new TextDecoder();
+    let received = 0, json = '';
+    while (true){
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      json += decoder.decode(value, { stream: true });
+      const percent = total > 0 ? Math.min(99, Math.floor(received / total * 100)) : null;
+      if (percent !== null) $('dict-progress').value = percent;
+      $('dict-status').textContent = `${KR_I18N.ipaDownloading} ${percent === null ? '' : percent + '% · '}${(received / 1024).toFixed(1)} KB ${KR_I18N.ipaReceived}`;
+    }
+    json += decoder.decode();
+    const data = JSON.parse(json);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Object.keys(data).length ||
+        !Object.values(data).every(value => typeof value === 'string' && value.length)) throw new Error();
+    if (dictController !== controller || controller.signal.aborted) return;
+    dict = data;
+    dictController = null;
+    dictState = 'idle';
+    $('dict-progress').value = 100;
+    updateDictSettings(KR_I18N.ipaReady);
+    setIpa(true);
+    $('settings').close();
+  } catch (error){
+    if (dictController !== controller) return;
+    dictController = null;
+    dictState = 'error';
+    updateDictSettings(KR_I18N.ipaError);
+    $('dict-retry').focus();
+  }
+}
+function cancelDictDownload(){
+  if (dictController){
+    dictController.abort();
+    dictController = null;
+  }
+  dictState = 'idle';
+}
+function deleteDict(){
+  cancelDictDownload();
+  dict = null;
+  setIpa(false);
+  for (const el of $('reel').children){
+    delete el.dataset.ipaDone;
+    el.classList.remove('ipa');
+    el.querySelectorAll('.ph').forEach(ph => ph.remove());
+  }
+  updateDictSettings(KR_I18N.ipaDeleted);
+  $('settings-close').focus();
+}
+$('settingsbtn').onclick = openSettings;
+$('settings-close').onclick = () => { cancelDictDownload(); $('settings').close(); };
+$('settings').oncancel = cancelDictDownload;
+$('dict-start').onclick = downloadDict;
+$('dict-retry').onclick = downloadDict;
+$('dict-delete').onclick = deleteDict;
 // update only the current line so the word being filled is not reset
 function renderKeep(){
   const el = $('reel').children[idx]; if (!el) return;
@@ -230,7 +314,7 @@ document.addEventListener('click', e => { const b = e.target.closest('button'); 
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ $('drawer').hidden = true; toggleHelp(false); return; }
-  if (!$('drawer').hidden) return;
+  if (!$('drawer').hidden || $('settings').open) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = e.target.tagName;
   if ((tag === 'INPUT' && e.target.type !== 'range') || tag === 'TEXTAREA') return;
@@ -258,4 +342,4 @@ document.addEventListener('keydown', e => {
 window.addEventListener('resize', center);
 
 setWpm(wpm); setSize(size); setGap(gapMs); build();
-if (ipaOn) setIpa(true);
+updateIpaButton();

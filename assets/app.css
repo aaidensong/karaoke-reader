@@ -51,6 +51,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);display:flex;f
 .prog i{display:block;height:100%;width:0;background:var(--fill);transition:width .2s}
 button{font-family:var(--f-ui);font-size:13px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
 button:hover{border-color:var(--fill)}
+button:disabled{opacity:.5;cursor:default}
 kbd{font-family:var(--f-ui);font-size:10px;padding:1px 5px;margin-left:6px;border:1px solid currentColor;border-radius:4px;opacity:.6}
 #play kbd{opacity:.8}
 .help{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}
@@ -77,6 +78,13 @@ input[type=range]{accent-color:var(--fill);width:110px}
 .sheet p{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
 textarea{flex:1;resize:none;font-family:var(--f-read);font-size:16px;line-height:1.6;background:var(--stage);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:12px}
 .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+dialog{box-sizing:border-box;width:min(480px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;font-size:13px}
+dialog::backdrop{background:#0008}
+dialog h2{margin:0 0 20px;font-size:15px}
+dialog h3{margin:0 0 12px;font-size:13px}
+dialog p{font-size:12px;line-height:1.6}
+#dict-progress{width:100%;accent-color:var(--fill)}
+#dict-status{min-height:1.6em}
 .drop{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;border:1px dashed var(--line);border-radius:8px;font-size:12px;color:var(--dim)}
 .drop.over,body.over .drop{border-color:var(--fill);background:var(--fill-soft)}
 label.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--dim);margin-right:auto}
