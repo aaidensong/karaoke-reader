@@ -9,7 +9,9 @@ const $ = id => document.getElementById(id);
 const store = {get(k,d){try{const v=localStorage.getItem('kr.'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
                set(k,v){try{localStorage.setItem('kr.'+k,JSON.stringify(v))}catch(e){}}};
 
-let text = store.get('text', SAMPLE), byLine = store.get('byline', false);
+const savedText = store.get('text', null);
+const firstVisit = !store.get('visited', false) && !(typeof savedText === 'string' && savedText.trim());
+let text = savedText ?? SAMPLE, byLine = store.get('byline', false);
 let lines = [], idx = 0, wordIdx = 0, wordStart = 0, playing = false, raf = 0, gapUntil = 0, elapsed = 0, lastT = 0;
 let wpm = store.get('wpm',150), size = store.get('size',40), gapMs = store.get('gap',400);
 let currentScriptId = null, ownLines = store.get('ownLines', false) === true;
@@ -580,6 +582,9 @@ setWpm(wpm); setSize(size); setGap(gapMs); build();
 updateIpaButton();
 const dictReady = restoreDict();
 openHashScript();
+// A shared link takes priority, including an empty or unknown script parameter.
+if (firstVisit && !new URLSearchParams(location.hash.slice(1)).has('script')) openLibrary();
+store.set('visited', true);
 
 // Install a complete app version, then reload existing controlled pages once on activation.
 if ('serviceWorker' in navigator){
