@@ -1,156 +1,3 @@
-<title>Karaoke Reader</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-/* Layout: one-screen stage. Script lines stacked in a column, current line pinned at the reading line; controls in a bottom bar, script editor in a side drawer. */
-:root{
-  --bg:#f3f4f7; --stage:#ffffff; --fg:#1b1e27; --dim:#9aa0b0; --line:#dfe2ea;
-  --fill:#2340d9; --fill-soft:#2340d91a; --panel:#ffffff; --stress:#c2410c;
-  --f-read:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
-  --f-ui:"IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --size:40px;
-}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0c0e14; --stage:#11141c; --fg:#eef0f6; --dim:#545b6e; --line:#232838;
-  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; color-scheme:dark } }
-:root[data-theme="dark"]{
-  --bg:#0c0e14; --stage:#11141c; --fg:#eef0f6; --dim:#545b6e; --line:#232838;
-  --fill:#6f8cff; --fill-soft:#6f8cff22; --panel:#161a24; --stress:#ff9a5c; color-scheme:dark }
-
-[hidden]{display:none!important}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);display:flex;flex-direction:column;overflow:hidden}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12px;letter-spacing:.04em;color:var(--dim)}
-.top b{color:var(--fg);font-weight:500;letter-spacing:.08em;text-transform:uppercase}
-.stage{flex:1;position:relative;overflow:hidden;background:var(--stage);border-block:1px solid var(--line);cursor:pointer}
-.reel{position:absolute;left:0;right:0;top:0;transition:transform .45s cubic-bezier(.2,.7,.2,1);
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.ln{font-family:var(--f-read);font-size:calc(var(--size)*.62);line-height:1.35;color:var(--dim);max-width:30ch;margin:0 auto;
-  padding-block:.35em;text-wrap:balance;transition:font-size .3s,color .3s,opacity .3s;opacity:.55}
-.ln.cur{font-size:var(--size);color:var(--fg);opacity:1;font-weight:700}
-.ln.past{opacity:.28}
-.ln.hd{font-family:var(--f-ui);font-weight:500;letter-spacing:.02em;color:var(--fill)}
-.ln.hd.h1,.ln.hd.h2{text-transform:uppercase;font-size:calc(var(--size)*.4);letter-spacing:.1em;padding-top:1.4em}
-.ln.hd.cur{font-size:calc(var(--size)*.72)}
-.ln.hd.h1.cur,.ln.hd.h2.cur{font-size:calc(var(--size)*.5)}
-.ln.hd.cur .w{color:var(--fill)}
-.w{white-space:pre-wrap}
-.ln.cur .w.done .t{color:var(--fill)}
-.ln.cur .w.on .t{background:linear-gradient(90deg,var(--fill) var(--p,0%),var(--fg) var(--p,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
-.ln.cur.ipa .w{display:inline-block;text-align:center;vertical-align:top}
-.ph{display:none}
-.ln.cur.ipa .ph{display:block;font-family:"Noto Sans","Segoe UI","Lucida Sans Unicode",system-ui,sans-serif;font-weight:400;font-size:.42em;line-height:1.3;letter-spacing:.01em;white-space:nowrap;color:var(--dim);-webkit-text-fill-color:var(--dim)}
-.ph .sep{opacity:.5}
-.ph .s1{font-weight:700;color:var(--stress);-webkit-text-fill-color:var(--stress)}
-.ph .s2{color:var(--fg);-webkit-text-fill-color:var(--fg)}
-.ln.cur.ipa .w.done .ph,.ln.cur.ipa .w.on .ph{opacity:.75}
-#ipa[aria-pressed="true"]{border-color:var(--fill);color:var(--fill)}
-.guide{position:absolute;left:0;right:0;top:42%;height:0;border-top:1px dashed var(--fill-soft);pointer-events:none}
-.hint{position:absolute;inset:auto 0 14px;text-align:center;font-size:11px;color:var(--dim);pointer-events:none}
-
-.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-block:12px;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.prog{flex-basis:100%;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
-.prog i{display:block;height:100%;width:0;background:var(--fill);transition:width .2s}
-button{font-family:var(--f-ui);font-size:13px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
-button:hover{border-color:var(--fill)}
-kbd{font-family:var(--f-ui);font-size:10px;padding:1px 5px;margin-left:6px;border:1px solid currentColor;border-radius:4px;opacity:.6}
-#play kbd{opacity:.8}
-.help{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}
-.help .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;width:min(420px,100%);max-height:100%;overflow:auto}
-.help h2{margin:0 0 12px;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
-.help dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0;font-size:13px}
-.help dt{text-align:right;white-space:nowrap}
-.help dt kbd{margin:0 0 0 4px;opacity:1;font-size:11px}
-.help dd{margin:0;color:var(--dim)}
-.help p{margin:14px 0 0;font-size:11px;color:var(--dim);line-height:1.6}
-@media (max-width:560px){ kbd{display:none} }
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--fill);outline-offset:2px}
-#play{background:var(--fill);border-color:var(--fill);color:#fff;min-width:84px}
-.grp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
-.grp output{color:var(--fg);font-variant-numeric:tabular-nums;min-width:3.5ch;text-align:right}
-input[type=range]{accent-color:var(--fill);width:110px}
-.spacer{flex:1}
-
-.drawer{position:fixed;inset:0;background:#0008;display:flex;justify-content:flex-end;z-index:20}
-.sheet{width:min(560px,100%);height:100%;background:var(--panel);display:flex;flex-direction:column;gap:12px;
-  padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.sheet h2{margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
-.sheet p{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
-textarea{flex:1;resize:none;font-family:var(--f-read);font-size:16px;line-height:1.6;background:var(--stage);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:12px}
-.row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.drop{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;border:1px dashed var(--line);border-radius:8px;font-size:12px;color:var(--dim)}
-.drop.over,body.over .drop{border-color:var(--fill);background:var(--fill-soft)}
-label.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--dim);margin-right:auto}
-@media (max-width:560px){ :root{--size:28px} .grp.opt{display:none} }
-@media (prefers-reduced-motion:reduce){ .reel,.ln{transition:none} }
-</style>
-
-<div class="top"><b>Karaoke Reader</b><span id="stat">0 / 0 · 0:00</span></div>
-
-<div class="stage" id="stage" title="클릭: 재생/일시정지">
-  <div class="guide"></div>
-  <div class="reel" id="reel"></div>
-  <div class="hint">? 단축키 보기 · 파일을 끌어다 놓으면 대본으로 불러옵니다</div>
-</div>
-
-<div class="bar">
-  <div class="prog"><i id="prog"></i></div>
-  <button id="prev" aria-label="이전 문장">←</button>
-  <button id="play"><span id="playlbl">▶ 재생</span><kbd>Space</kbd></button>
-  <button id="next" aria-label="다음 문장">→</button>
-  <div class="grp"><label for="wpm">WPM</label><input id="wpm" type="range" min="60" max="400" step="5" value="150"><output id="wpmv">150</output></div>
-  <div class="grp opt"><label for="fs">글자</label><input id="fs" type="range" min="24" max="72" step="2" value="40"><output id="fsv">40</output></div>
-  <div class="grp opt"><label for="gap">문장 간격</label><input id="gap" type="range" min="0" max="2000" step="100" value="400"><output id="gapv">0.4s</output></div>
-  <span class="spacer"></span>
-  <button id="ipa" aria-pressed="false"><span id="ipalbl">발음기호 끔</span><kbd>P</kbd></button>
-  <button id="edit">대본 편집<kbd>E</kbd></button>
-  <button id="helpbtn" aria-label="단축키">?</button>
-</div>
-
-<div class="help" id="help" hidden>
-  <div class="card">
-    <h2>단축키</h2>
-    <dl>
-      <dt><kbd>Space</kbd></dt><dd>재생 / 일시정지</dd>
-      <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>이전 / 다음 문장</dd>
-      <dt><kbd>R</kbd></dt><dd>현재 문장 처음부터 다시</dd>
-      <dt><kbd>Shift</kbd><kbd>R</kbd></dt><dd>대본 처음으로</dd>
-      <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>속도 ±10 WPM</dd>
-      <dt><kbd>P</kbd></dt><dd>발음기호 켜기 / 끄기</dd>
-      <dt><kbd>−</kbd><kbd>=</kbd></dt><dd>글자 작게 / 크게</dd>
-      <dt><kbd>F</kbd></dt><dd>전체 화면</dd>
-      <dt><kbd>E</kbd></dt><dd>대본 편집</dd>
-      <dt><kbd>?</kbd></dt><dd>이 창 열기 / 닫기</dd>
-      <dt><kbd>Esc</kbd></dt><dd>열린 창 닫기</dd>
-    </dl>
-    <p>한글 입력 상태에서도 동작합니다. 대본 편집 창이 열려 있을 때는 Esc만 동작합니다.</p>
-  </div>
-</div>
-
-<div class="drawer" id="drawer" hidden>
-  <div class="sheet">
-    <h2>대본</h2>
-    <p>문장 부호(. ! ?)와 줄바꿈 기준으로 한 줄씩 나뉩니다. 한 줄로 묶고 싶은 구간은 직접 줄바꿈으로 조정하세요. 대본은 이 브라우저에만 저장됩니다.</p>
-    <div class="drop" id="drop">
-      <input id="file" type="file" accept=".txt,.md,.srt,.vtt,.docx,text/plain" hidden>
-      <button id="pick" type="button">파일 첨부</button>
-      <span id="fmsg">.txt .md .srt .vtt .docx 지원 · 이 창이나 화면 어디에든 끌어다 놓아도 됩니다</span>
-    </div>
-    <textarea id="src" spellcheck="false"></textarea>
-    <div class="row">
-      <label class="chk"><input id="byline" type="checkbox"> 줄바꿈 단위로만 나누기</label>
-      <button id="cancel">닫기</button>
-      <button id="apply" style="background:var(--fill);border-color:var(--fill);color:#fff">적용</button>
-    </div>
-  </div>
-</div>
-
-<script>
 const SAMPLE = `Most people think fluency comes from knowing more words. In practice, it comes from processing familiar words faster.
 When you read at a steady pace, your eyes stop jumping back to the start of the sentence. That habit, called regression, quietly doubles your reading time.
 A moving line removes the option to go back. You either keep up, or you notice exactly where you fell behind.
@@ -243,13 +90,13 @@ function tick(t){
 function play(){
   if (!lines.length) return;
   if (idx >= lines.length-1 && wordIdx >= lines[idx].words.length) { idx = 0; wordIdx = 0; }
-  playing = true; $('playlbl').textContent = '❚❚ 정지';
+  playing = true; $('playlbl').textContent = KR_I18N.pause;
   const t = performance.now(); lastT = t;
   durs = durations(lines[idx].words);
   wordStart = t; render();
   raf = requestAnimationFrame(tick);
 }
-function stop(){ playing = false; gapUntil = 0; cancelAnimationFrame(raf); $('playlbl').textContent = '▶ 재생'; render(); }
+function stop(){ playing = false; gapUntil = 0; cancelAnimationFrame(raf); $('playlbl').textContent = KR_I18N.play; render(); }
 function toggle(){ playing ? stop() : play(); }
 function go(d){
   idx = Math.max(0, Math.min(lines.length-1, idx+d)); gapUntil = 0;
@@ -285,24 +132,24 @@ function loadMammoth(){
   return window.mammoth ? Promise.resolve() : new Promise((ok, no) => {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
-    s.onload = ok; s.onerror = () => no(new Error('Word 변환 도구를 불러오지 못했습니다.'));
+    s.onload = ok; s.onerror = () => no(new Error(KR_I18N.wordToolError));
     document.head.appendChild(s);
   });
 }
 async function importFile(f){
   if (!f) return;
   const name = f.name.toLowerCase();
-  $('fmsg').textContent = f.name + ' 읽는 중…';
+  $('fmsg').textContent = f.name + KR_I18N.reading;
   try {
     let t;
     if (name.endsWith('.docx')){ await loadMammoth(); t = (await mammoth.extractRawText({ arrayBuffer: await f.arrayBuffer() })).value; }
-    else if (/\.(pdf|doc|pages|hwp)$/.test(name)) throw new Error('이 형식은 지원하지 않습니다. 텍스트를 복사해 붙여 넣어 주세요.');
+    else if (/\.(pdf|doc|pages|hwp)$/.test(name)) throw new Error(KR_I18N.unsupportedFile);
     else { t = await f.text(); if (/\.(srt|vtt)$/.test(name)) t = cleanSubs(t); }
     t = t.trim();
-    if (!t) throw new Error('파일에서 텍스트를 찾지 못했습니다.');
+    if (!t) throw new Error(KR_I18N.emptyFile);
     if ($('drawer').hidden) openEditor();
     $('src').value = t;
-    $('fmsg').textContent = f.name + ' 불러옴 · 확인 후 적용을 누르세요';
+    $('fmsg').textContent = f.name + KR_I18N.imported;
   } catch (err) { if ($('drawer').hidden) openEditor(); $('fmsg').textContent = err.message; }
 }
 $('pick').onclick = () => $('file').click();
@@ -353,10 +200,10 @@ function ensureDict(){
 async function setIpa(on){
   ipaOn = on; store.set('ipa', on);
   $('ipa').setAttribute('aria-pressed', on);
-  $('ipalbl').textContent = on ? (dict ? '발음기호 켬' : '불러오는 중…') : '발음기호 끔';
+  $('ipalbl').textContent = on ? (dict ? KR_I18N.ipaOn : KR_I18N.loading) : KR_I18N.ipaOff;
   if (on) {
-    try { await ensureDict(); $('ipalbl').textContent = '발음기호 켬'; }
-    catch(e) { ipaOn = false; $('ipa').setAttribute('aria-pressed', false); $('ipalbl').textContent = '불러오기 실패 · 다시 시도'; return; }
+    try { await ensureDict(); $('ipalbl').textContent = KR_I18N.ipaOn; }
+    catch(e) { ipaOn = false; $('ipa').setAttribute('aria-pressed', false); $('ipalbl').textContent = KR_I18N.ipaError; return; }
   }
   renderKeep();
 }
@@ -412,4 +259,3 @@ window.addEventListener('resize', center);
 
 setWpm(wpm); setSize(size); setGap(gapMs); build();
 if (ipaOn) setIpa(true);
-</script>
