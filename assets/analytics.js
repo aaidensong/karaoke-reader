@@ -1,4 +1,4 @@
-// Only fixed event names and IDs resolved from the library index enter this module.
+// Only fixed event names and library IDs, "custom", or "sample" enter this module.
 // https://www.goatcounter.com/help/start · /help/js · /help/events
 (() => {
   const local = /(^|\.)localhost$|^127\.|^\[::1\]$/.test(location.hostname) || location.protocol === 'file:';

@@ -17,9 +17,18 @@ const savedSize = store.get('size', null);
 // Older versions saved 40 on every startup, so only other legacy values imply a choice.
 let sizeCustomized = store.get('sizeCustomized', savedSize !== null && savedSize !== 40) === true;
 let wpm = store.get('wpm',150), size = savedSize ?? 40, gapMs = store.get('gap',400);
-let currentScriptId = null, ownLines = store.get('ownLines', false) === true;
+// Keep the source received from the library with its ID, separately from editable text.
+// Restoration stays synchronous and offline; an edited text cannot inherit that ID.
+let libraryScript = store.get('libraryScript', null);
+function libraryId(source){
+  return libraryScript && typeof libraryScript.id === 'string' &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(libraryScript.id) && typeof libraryScript.text === 'string' &&
+    source.trim() === libraryScript.text.trim() ? libraryScript.id : null;
+}
+let currentScriptId = libraryId(text), ownLines = store.get('ownLines', false) === true;
 const startedScripts = new Set();
-function track(event, id = currentScriptId || 'custom'){ window.KR_ANALYTICS?.track(event, id); }
+function scriptSource(){ return currentScriptId || (text.trim() === SAMPLE.trim() ? 'sample' : 'custom'); }
+function track(event, id = scriptSource()){ window.KR_ANALYTICS?.track(event, id); }
 $('own-lines').checked = ownLines;
 
 function split(t){
@@ -128,7 +137,7 @@ function tick(t){
 function play(){
   if (!lines.length) return;
   // Custom texts stay in memory for deduplication; only the literal "custom" is sent.
-  const key = currentScriptId ? `library:${currentScriptId}` : `custom:${text}`;
+  const key = currentScriptId ? `library:${currentScriptId}` : scriptSource() === 'sample' ? 'sample' : `custom:${text}`;
   if (!startedScripts.has(key)){ startedScripts.add(key); track('play-start'); }
   if (idx >= lines.length-1 && wordIdx >= lines[idx].words.length) { idx = 0; wordIdx = 0; }
   playing = true; $('playlbl').textContent = KR_I18N.pause;
@@ -175,11 +184,13 @@ $('apply').onclick = () => {
   const next = $('src').value.trim() || SAMPLE, parsed = KR_SCRIPT.parse(next);
   if (parsed.errors.length){ $('script-error').textContent = KR_I18N.scriptInvalid + ' ' + parsed.errors.join(' '); $('script-error').hidden = false; return; }
   text = next; byLine = $('byline').checked;
-  currentScriptId = null; libraryLoad?.abort();
+  currentScriptId = libraryId(text); libraryLoad?.abort();
+  if (!currentScriptId) libraryScript = null;
   history.replaceState(null, '', location.pathname + location.search);
   $('script-status').textContent = ''; $('share-link').hidden = true;
   if (parsed.structured) setWpm(parsed.meta.wpm);
   store.set('text', text); store.set('byline', byLine);
+  store.set('libraryScript', libraryScript);
   idx = 0; $('drawer').hidden = true; build();
   track('script-open');
 };
@@ -560,6 +571,8 @@ async function openLibraryScript(id, updateHash = true){
     if (controller.signal.aborted) return;
     stop();
     text = source; byLine = false; currentScriptId = id; idx = 0;
+    libraryScript = { id, text: source };
+    store.set('libraryScript', libraryScript);
     store.set('text', text); store.set('byline', false);
     setWpm(parsed.meta.wpm); build();
     track('script-open');
@@ -579,8 +592,8 @@ function openHashScript(){
   const id = new URLSearchParams(location.hash.slice(1)).get('script');
   if (id) openLibraryScript(id, false);
   else {
-    libraryLoad?.abort(); currentScriptId = null; failedScript = null;
-    $('share').hidden = true; $('share-link').hidden = true; $('script-status').textContent = '';
+    libraryLoad?.abort(); currentScriptId = libraryId(text); failedScript = null;
+    $('share').hidden = !currentScriptId; $('share-link').hidden = true; $('script-status').textContent = '';
   }
 }
 $('librarybtn').onclick = openLibrary;
@@ -617,7 +630,6 @@ setWpm(wpm); syncSize(); setGap(gapMs); build();
 updateIpaButton();
 const dictReady = restoreDict();
 openHashScript();
-if (!new URLSearchParams(location.hash.slice(1)).get('script')) track('script-open');
 // A shared link takes priority, including an empty or unknown script parameter.
 if (firstVisit && !new URLSearchParams(location.hash.slice(1)).has('script')) openLibrary();
 store.set('visited', true);
