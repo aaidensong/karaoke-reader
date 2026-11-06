@@ -32,7 +32,7 @@ That sounds good. I'll have one, but could you leave it cold?
 
 > No problem. Is this order for here or to go?
 
-For here, please. Can I have the coffee in a cup instead of a paper cup?
+For here, please. Could I have the coffee in a mug, please?
 
 > We can do that. We have a table by the door if you'd like a seat.
 
