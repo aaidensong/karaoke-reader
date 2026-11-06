@@ -18,6 +18,8 @@ const savedSize = store.get('size', null);
 let sizeCustomized = store.get('sizeCustomized', savedSize !== null && savedSize !== 40) === true;
 let wpm = store.get('wpm',150), size = savedSize ?? 40, gapMs = store.get('gap',400);
 let currentScriptId = null, ownLines = store.get('ownLines', false) === true;
+const startedScripts = new Set();
+function track(event, id = currentScriptId || 'custom'){ window.KR_ANALYTICS?.track(event, id); }
 $('own-lines').checked = ownLines;
 
 function split(t){
@@ -97,7 +99,7 @@ function tick(t){
   if (gapUntil){
     if (t < gapUntil){ raf = requestAnimationFrame(tick); return; }
     gapUntil = 0;
-    if (idx >= lines.length-1){ stop(); return; }
+    if (idx >= lines.length-1){ track('play-complete'); stop(); return; }
     idx++; startLine(t);
   }
   const line = $('reel').children[idx];
@@ -125,6 +127,9 @@ function tick(t){
 
 function play(){
   if (!lines.length) return;
+  // Custom texts stay in memory for deduplication; only the literal "custom" is sent.
+  const key = currentScriptId ? `library:${currentScriptId}` : `custom:${text}`;
+  if (!startedScripts.has(key)){ startedScripts.add(key); track('play-start'); }
   if (idx >= lines.length-1 && wordIdx >= lines[idx].words.length) { idx = 0; wordIdx = 0; }
   playing = true; $('playlbl').textContent = KR_I18N.pause;
   const t = performance.now(); lastT = t;
@@ -176,6 +181,7 @@ $('apply').onclick = () => {
   if (parsed.structured) setWpm(parsed.meta.wpm);
   store.set('text', text); store.set('byline', byLine);
   idx = 0; $('drawer').hidden = true; build();
+  track('script-open');
 };
 // file import: plain text, subtitles (timestamps stripped), Word via mammoth loaded on demand
 function cleanSubs(t){
@@ -323,6 +329,7 @@ async function downloadDict(){
   await dictReady;
   await dictPersistence;
   if (dict || dictController || dictDeleting || !['prompt', 'error'].includes(dictState)) return;
+  track('dictionary-confirm');
   const controller = new AbortController();
   dictController = controller;
   dictState = 'loading';
@@ -373,6 +380,7 @@ async function downloadDict(){
   }
 }
 function cancelDictDownload(){
+  if (['prompt', 'loading', 'error'].includes(dictState)) track('dictionary-cancel');
   if (dictController){
     dictController.abort();
     dictController = null;
@@ -554,6 +562,7 @@ async function openLibraryScript(id, updateHash = true){
     text = source; byLine = false; currentScriptId = id; idx = 0;
     store.set('text', text); store.set('byline', false);
     setWpm(parsed.meta.wpm); build();
+    track('script-open');
     const hash = '#script=' + encodeURIComponent(id);
     if (updateHash && location.hash !== hash) history.pushState(null, '', hash);
     failedScript = null; $('script-status').textContent = ''; $('library-retry').hidden = true;
@@ -590,8 +599,10 @@ $('own-lines').onchange = () => {
 $('share').onclick = async () => {
   if (!currentScriptId) return;
   const url = new URL('./', appBase); url.hash = 'script=' + encodeURIComponent(currentScriptId);
+  const sharedId = currentScriptId;
   try {
     await navigator.clipboard.writeText(url.href);
+    track('share-copy', sharedId);
     $('script-status').textContent = KR_I18N.shareCopied;
   } catch (_){
     $('share-link').hidden = false; $('share-link').value = url.href;
@@ -599,12 +610,14 @@ $('share').onclick = async () => {
     $('script-status').textContent = KR_I18N.shareFallback;
   }
 };
+$('share-link').oncopy = () => { if (currentScriptId) track('share-copy'); };
 window.addEventListener('hashchange', openHashScript);
 
 setWpm(wpm); syncSize(); setGap(gapMs); build();
 updateIpaButton();
 const dictReady = restoreDict();
 openHashScript();
+if (!new URLSearchParams(location.hash.slice(1)).get('script')) track('script-open');
 // A shared link takes priority, including an empty or unknown script parameter.
 if (firstVisit && !new URLSearchParams(location.hash.slice(1)).has('script')) openLibrary();
 store.set('visited', true);

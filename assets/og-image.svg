@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#2340d9"/>
+  <!-- Same three-line shape and fill progression as assets/icons/icon.svg. -->
+  <g transform="translate(72 68) scale(.5)">
+    <g fill="#91a4ff">
+      <rect width="288" height="32" rx="16"/>
+      <rect y="84" width="288" height="32" rx="16"/>
+      <rect y="168" width="208" height="32" rx="16"/>
+    </g>
+    <g fill="#fff">
+      <rect width="288" height="32" rx="16"/>
+      <rect y="84" width="176" height="32" rx="16"/>
+    </g>
+  </g>
+  <text x="72" y="350" fill="#fff" font-family="Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="-3">Karaoke Reader</text>
+  <text x="76" y="448" fill="#fff" font-family="Apple SD Gothic Neo, Noto Sans KR, sans-serif" font-size="48" font-weight="500">내 속도로 읽고 말하는 영어 연습</text>
+  <rect x="76" y="525" width="1048" height="10" rx="5" fill="#91a4ff"/>
+  <rect x="76" y="525" width="640" height="10" rx="5" fill="#fff"/>
+</svg>
